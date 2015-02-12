@@ -19,6 +19,8 @@
     "mocha": "^2.1.0"
   },
   "dependencies": {
-    "blockchain-account-monitor": "^0.2.0"
+    "bitcoin": "^2.3.0",
+    "blockchain-account-monitor": "^0.2.0",
+    "bluebird": "^2.9.8"
   }
 }
