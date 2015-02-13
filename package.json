@@ -21,6 +21,8 @@
   "dependencies": {
     "bitcoin": "^2.3.0",
     "blockchain-account-monitor": "^0.2.0",
-    "bluebird": "^2.9.8"
+    "bluebird": "^2.9.9",
+    "lodash": "^3.2.0",
+    "promise-while": "^1.0.1"
   }
 }
