@@ -4,8 +4,6 @@ import Promise from 'bluebird'
 import Monitor from './monitor'
 import Client  from './client'
 
-const CPU_PER_BITCOIN = 10000000
-
 export default class CodiusBillingBitcoind {
 
   constructor(codius, bitcoind) {
@@ -85,7 +83,7 @@ export default class CodiusBillingBitcoind {
       if (address) {
 
         address.related('token').fetch().then(token => {
-          var CPU = parseFloat(payment.amount) * CPU_PER_BITCOIN
+          var CPU = parseFloat(payment.amount) * this.codius.config.get('compute_units_per_bitcoin')
           this.billing.credit(token, CPU)
             .then(credit => {
               this.codius.logger.info('token:credited', token.get('token'), CPU) 

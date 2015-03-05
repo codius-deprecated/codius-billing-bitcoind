@@ -19,8 +19,6 @@ var Monitor = _interopRequire(require("./monitor"));
 
 var Client = _interopRequire(require("./client"));
 
-var CPU_PER_BITCOIN = 10000000;
-
 var CodiusBillingBitcoind = (function () {
   function CodiusBillingBitcoind(codius, bitcoind) {
     this.codius = codius;
@@ -109,7 +107,7 @@ var CodiusBillingBitcoind = (function () {
         }).fetch().then(function (address) {
           if (address) {
             address.related("token").fetch().then(function (token) {
-              var CPU = parseFloat(payment.amount) * CPU_PER_BITCOIN;
+              var CPU = parseFloat(payment.amount) * _this4.codius.config.get("compute_units_per_bitcoin");
               _this4.billing.credit(token, CPU).then(function (credit) {
                 _this4.codius.logger.info("token:credited", token.get("token"), CPU);
               });
