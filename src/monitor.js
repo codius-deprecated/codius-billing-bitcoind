@@ -4,10 +4,11 @@ import Client from './client'
 
 Promise.while = whileFactory(Promise)
 
+const TIMEOUT = 3000
+
 export default class Monitor {
 
   constructor(options) {
-    console.log('LBH', options.lastBlockHash)
     this.lastBlockHash = options.lastBlockHash
     this.client = options.client
     this.timeout = options.timeout || 2000
@@ -19,16 +20,15 @@ export default class Monitor {
 
   start() {
     var hash = this.lastBlockHash
-    console.log('START', hash)
-    var self = this
     return Promise.while(() => { return true }, () => {
-      console.log('IN WHILE LOOP', self.lastBlockHash)
       return new Promise(resolve => {
-        return this.client.listNextBlock(self.lastBlockHash).then(block => {
-          console.log('GOOOOT BLOOOK', block)
-          if (!block) { return resolve() }
+        return this.client.listNextBlock(this.lastBlockHash).then(block => {
+          if (!block) { return setTimeout(resolve, TIMEOUT) }
+          console.log('GOT A BITCOIN BLOCK WITH PAYMENTS', block)
           this.onBlock(block).then(() => {
-            resolve(self.lastBlockHash = block[0].blockhash)
+            let blockHash = block[0].blockhash
+            this.lastBlockHash = blockHash
+            resolve()
           })
         })
       })

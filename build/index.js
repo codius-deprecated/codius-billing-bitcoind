@@ -19,6 +19,8 @@ var Monitor = _interopRequire(require("./monitor"));
 
 var Client = _interopRequire(require("./client"));
 
+var CPU_PER_BITCOIN = 10000000;
+
 var CodiusBillingBitcoind = (function () {
   function CodiusBillingBitcoind(codius, bitcoind) {
     this.codius = codius;
@@ -44,22 +46,32 @@ var CodiusBillingBitcoind = (function () {
     processPayments: {
       value: function processPayments() {
         var _this2 = this;
-        this.getLastPaymentHash().then(function (hash) {
-          var monitor = new Monitor({
-            client: _this2.client,
-            onBlock: function (block, next) {
-              return new Promise(function (resolve) {
-                block.forEach(function (payment) {
-                  _this2.processPayment(payment);
-                });
-                resolve();
-              });
-            },
-            lastBlockHash: hash,
-            timeout: 1000
-          });
 
-          monitor.start();
+
+        return this.codius.Ledger.findOrCreate({
+          name: "bitcoin"
+        }).then(function (ledger) {
+          _this2.getLastPaymentHash().then(function (hash) {
+            var monitor = new Monitor({
+              client: _this2.client,
+              onBlock: function (block, next) {
+                return new Promise(function (resolve) {
+                  if (block) {
+                    block.forEach(function (payment) {
+                      _this2.processPayment(payment);
+                    });
+                  }
+                  ledger.set("last_hash", block[0].blockhash).save().then(function () {
+                    resolve();
+                  });
+                });
+              },
+              lastBlockHash: hash,
+              timeout: 2000
+            });
+
+            monitor.start();
+          });
         });
       },
       writable: true,
@@ -90,14 +102,17 @@ var CodiusBillingBitcoind = (function () {
     processPayment: {
       value: function processPayment(payment) {
         var _this4 = this;
-        console.log("PROCESS PAYMENT", payment);
+
+
         new this.codius.Address({
-          network: "bitcoin",
           address: payment.address
         }).fetch().then(function (address) {
           if (address) {
             address.related("token").fetch().then(function (token) {
-              _this4._billing.credit(token, payment.amount, payment.hash);
+              var CPU = parseFloat(payment.amount) * CPU_PER_BITCOIN;
+              _this4.billing.credit(token, CPU).then(function (credit) {
+                _this4.codius.logger.info("token:credited", token.get("token"), CPU);
+              });
             });
           }
         });

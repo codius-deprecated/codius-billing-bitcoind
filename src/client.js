@@ -4,17 +4,14 @@ import bitcoin from 'bitcoin'
 
 export default class Client {
   constructor(options) {
-    console.log('new Client', options)
-    this.confirmations = options.confirmations
+    this.confirmations = options.confirmations || 1
     this.bitcoind = Promise.promisifyAll(new bitcoin.Client(options))
   }
 
   listNextBlock(previousBlockHash) {
-    console.log('listSinceBlock', previousBlockHash)
-    return this.bitcoind.listSinceBlockAsync(previousBlockHash)//, String(this.confirmations))
-      .then(function(transactions) {
+    return this.bitcoind.listSinceBlockAsync(previousBlockHash)
+      .then(transactions => {
         let transactions = transactions[0].transactions
-        console.log('LIST SINCE BLOCK', previousBlockHash, transactions)
         if (!transactions || transactions.length === 0) { return }
         let confirmed = this.filterByMinimumConfirmations(transactions, this.confirmations);
         if (confirmed.length === 0) { return }
@@ -22,6 +19,12 @@ export default class Client {
         var nextBlockHash = sorted[0].blockhash;
         return this.transactionsInBlock(sorted, nextBlockHash);
       })
+  }
+
+  getTransactionBlockHash(id) {
+    return this.bitcoind.getTransactionAsync(id).then(function(transaction) {
+      return Promise.resolve(transaction.blockhash)
+    })
   }
 
   sortTransactionsByTime(transactions) {
@@ -38,7 +41,7 @@ export default class Client {
 
   filterByMinimumConfirmations(transactions) {
     return _.filter(transactions, transaction => {
-      return parseInt(transaction.confirmations) >= confirmations
+      return parseInt(transaction.confirmations) >= this.confirmations
     })
   }
 }

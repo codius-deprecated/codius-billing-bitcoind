@@ -17,29 +17,36 @@ var bitcoin = _interopRequire(require("bitcoin"));
 
 var Client = (function () {
   function Client(options) {
-    console.log("new Client", options);
-    this.confirmations = options.confirmations;
+    this.confirmations = options.confirmations || 1;
     this.bitcoind = Promise.promisifyAll(new bitcoin.Client(options));
   }
 
   _prototypeProperties(Client, null, {
     listNextBlock: {
       value: function listNextBlock(previousBlockHash) {
-        console.log("listSinceBlock", previousBlockHash);
-        return this.bitcoind.listSinceBlockAsync(previousBlockHash) //, String(this.confirmations))
-        .then(function (transactions) {
+        var _this = this;
+        return this.bitcoind.listSinceBlockAsync(previousBlockHash).then(function (transactions) {
           var transactions = transactions[0].transactions;
-          console.log("LIST SINCE BLOCK", previousBlockHash, transactions);
           if (!transactions || transactions.length === 0) {
             return;
           }
-          var confirmed = this.filterByMinimumConfirmations(transactions, this.confirmations);
+          var confirmed = _this.filterByMinimumConfirmations(transactions, _this.confirmations);
           if (confirmed.length === 0) {
             return;
           }
-          var sorted = this.sortTransactionsByTime(confirmed);
+          var sorted = _this.sortTransactionsByTime(confirmed);
           var nextBlockHash = sorted[0].blockhash;
-          return this.transactionsInBlock(sorted, nextBlockHash);
+          return _this.transactionsInBlock(sorted, nextBlockHash);
+        });
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    getTransactionBlockHash: {
+      value: function getTransactionBlockHash(id) {
+        return this.bitcoind.getTransactionAsync(id).then(function (transaction) {
+          return Promise.resolve(transaction.blockhash);
         });
       },
       writable: true,
@@ -68,8 +75,9 @@ var Client = (function () {
     },
     filterByMinimumConfirmations: {
       value: function filterByMinimumConfirmations(transactions) {
+        var _this2 = this;
         return _.filter(transactions, function (transaction) {
-          return parseInt(transaction.confirmations) >= confirmations;
+          return parseInt(transaction.confirmations) >= _this2.confirmations;
         });
       },
       writable: true,

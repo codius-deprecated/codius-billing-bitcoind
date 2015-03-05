@@ -4,6 +4,8 @@ import Promise from 'bluebird'
 import Monitor from './monitor'
 import Client  from './client'
 
+const CPU_PER_BITCOIN = 10000000
+
 export default class CodiusBillingBitcoind {
 
   constructor(codius, bitcoind) {
@@ -17,30 +19,43 @@ export default class CodiusBillingBitcoind {
     return this.bitcoind.getNewAddressAsync('')
       .then(result => {
         return this.codius.Ledger.findOrCreate({ name: 'bitcoin' })
-          .then(function(ledger) {
+          .then(ledger => {
             return ledger.registerAddress(token, result[0])
           })
       })
   }
 
   processPayments() {
-    this.getLastPaymentHash().then(hash => {
 
-      var monitor = new Monitor({
-        client: this.client,
-        onBlock: (block, next) => {
-          return new Promise(resolve => {
-            block.forEach(payment => {
-              this.processPayment(payment)
+    return this.codius.Ledger.findOrCreate({
+      name: 'bitcoin'
+    })
+    .then(ledger => {
+      this.getLastPaymentHash().then(hash => {
+
+        var monitor = new Monitor({
+          client: this.client,
+          onBlock: (block, next) => {
+            return new Promise(resolve => {
+              if (block) {
+                block.forEach(payment => {
+                  this.processPayment(payment)
+                })
+              }
+              ledger
+                .set('last_hash', block[0].blockhash)
+                .save()
+                .then(()=> {
+                  resolve()
+                })
             })
-            resolve()
-          })
-        },  
-        lastBlockHash: hash,
-        timeout: 1000
-      })
+          },  
+          lastBlockHash: hash,
+          timeout: 2000
+        })
 
-      monitor.start()
+        monitor.start()
+      })
     })
   }
 
@@ -62,15 +77,19 @@ export default class CodiusBillingBitcoind {
   }
 
   processPayment(payment) {
-    console.log('PROCESS PAYMENT', payment);
+
     new this.codius.Address({
-      network: 'bitcoin',
       address: payment.address
     })
     .fetch().then(address => {
       if (address) {
+
         address.related('token').fetch().then(token => {
-          this._billing.credit(token, payment.amount, payment.hash)
+          var CPU = parseFloat(payment.amount) * CPU_PER_BITCOIN
+          this.billing.credit(token, CPU)
+            .then(credit => {
+              this.codius.logger.info('token:credited', token.get('token'), CPU) 
+            })
         })
       }
     })
